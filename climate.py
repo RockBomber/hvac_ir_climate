@@ -5,15 +5,9 @@ import voluptuous as vol
 
 from homeassistant.components.climate import ClimateEntity, PLATFORM_SCHEMA
 from homeassistant.components.climate.const import (
-    HVAC_MODE_OFF,
-    HVAC_MODE_HEAT,
-    HVAC_MODE_COOL,
-    HVAC_MODE_DRY,
-    HVAC_MODE_FAN_ONLY,
-    SUPPORT_TARGET_TEMPERATURE,
-    SUPPORT_FAN_MODE,
-    SUPPORT_SWING_MODE,
     ATTR_HVAC_MODE,
+    ClimateEntityFeature,
+    HVACMode,
 )
 from homeassistant.const import (
     CONF_NAME,
@@ -66,11 +60,11 @@ class HvacIrClimate(ClimateEntity, RestoreEntity):
         self._max_temperature = 31
         self._precision = 1
         self._operation_modes = {
-            HVAC_MODE_OFF: None,  # PowerMode.PowerOff
-            HVAC_MODE_COOL: ClimateMode.Cold,
-            HVAC_MODE_DRY: ClimateMode.Dry,
-            HVAC_MODE_HEAT: ClimateMode.Hot,
-            HVAC_MODE_FAN_ONLY: ClimateMode.Auto,
+            HVACMode.OFF: None,  # PowerMode.PowerOff
+            HVACMode.COOL: ClimateMode.Cold,
+            HVACMode.DRY: ClimateMode.Dry,
+            HVACMode.HEAT: ClimateMode.Hot,
+            HVACMode.FAN_ONLY: ClimateMode.Auto,
         }
         self._fan_modes = {
             "Auto": FanMode.Auto,
@@ -90,7 +84,7 @@ class HvacIrClimate(ClimateEntity, RestoreEntity):
         }
 
         self._target_temperature = self._min_temperature
-        self._hvac_mode = HVAC_MODE_OFF
+        self._hvac_mode = HVACMode.OFF
         self._current_fan_mode = "Speed1"
         self._current_swing_mode = "Top"
         self._last_on_operation = None
@@ -99,7 +93,7 @@ class HvacIrClimate(ClimateEntity, RestoreEntity):
 
         # Supported features
         self._support_flags = (
-            SUPPORT_TARGET_TEMPERATURE | SUPPORT_FAN_MODE | SUPPORT_SWING_MODE
+            ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.FAN_MODE | ClimateEntityFeature.SWING_MODE
         )
 
         self._temp_lock = asyncio.Lock()
@@ -137,9 +131,9 @@ class HvacIrClimate(ClimateEntity, RestoreEntity):
     @property
     def state(self):
         """Return the current state."""
-        if self.hvac_mode != HVAC_MODE_OFF:
+        if self.hvac_mode != HVACMode.OFF:
             return self.hvac_mode
-        return HVAC_MODE_OFF
+        return HVACMode.OFF
 
     @property
     def temperature_unit(self):
@@ -241,7 +235,7 @@ class HvacIrClimate(ClimateEntity, RestoreEntity):
             await self.async_set_hvac_mode(hvac_mode)
             return
 
-        if not self._hvac_mode.lower() == HVAC_MODE_OFF:
+        if not self._hvac_mode.lower() == HVACMode.OFF:
             await self.send_command()
 
         await self.async_update_ha_state()
@@ -250,7 +244,7 @@ class HvacIrClimate(ClimateEntity, RestoreEntity):
         """Set operation mode."""
         self._hvac_mode = hvac_mode
 
-        if not hvac_mode == HVAC_MODE_OFF:
+        if not hvac_mode == HVACMode.OFF:
             self._last_on_operation = hvac_mode
 
         await self.send_command()
@@ -260,7 +254,7 @@ class HvacIrClimate(ClimateEntity, RestoreEntity):
         """Set fan mode."""
         self._current_fan_mode = fan_mode
 
-        if not self._hvac_mode.lower() == HVAC_MODE_OFF:
+        if not self._hvac_mode.lower() == HVACMode.OFF:
             await self.send_command()
         await self.async_update_ha_state()
 
@@ -268,20 +262,20 @@ class HvacIrClimate(ClimateEntity, RestoreEntity):
         """Set swing mode."""
         self._current_swing_mode = swing_mode
 
-        if not self._hvac_mode.lower() == HVAC_MODE_OFF:
+        if not self._hvac_mode.lower() == HVACMode.OFF:
             await self.send_command()
         await self.async_update_ha_state()
 
     async def async_turn_off(self):
         """Turn off."""
-        await self.async_set_hvac_mode(HVAC_MODE_OFF)
+        await self.async_set_hvac_mode(HVACMode.OFF)
 
     async def async_turn_on(self):
         """Turn on."""
         if self._last_on_operation is not None:
             await self.async_set_hvac_mode(self._last_on_operation)
         else:
-            await self.async_set_hvac_mode(HVAC_MODE_COOL)
+            await self.async_set_hvac_mode(HVACMode.COOL)
 
     async def send_command(self):
         async with self._temp_lock:
@@ -292,7 +286,7 @@ class HvacIrClimate(ClimateEntity, RestoreEntity):
                 fan_mode = self._fan_modes[self._current_fan_mode]
                 swing_mode = self._swing_modes[self._current_swing_mode]
 
-                if self._hvac_mode.lower() == HVAC_MODE_OFF:
+                if self._hvac_mode.lower() == HVACMode.OFF:
                     command = mitsubishi.power_off()
                 else:
                     command = mitsubishi.send_command(
